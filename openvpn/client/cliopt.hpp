@@ -219,6 +219,22 @@ public:
     cp->rng = rng;
     cp->prng = prng;
 
+    ssl_cc.set_external_pki_callback(config.external_pki);
+    ssl_cc.frame = frame;
+    ssl_cc.context = Frame::READ_TRANSPORT_BIO_MEMQ_STREAM;
+#ifdef OPENVPN_SSL_DEBUG
+   ssl_cc.ssl_debug_level = OPENVPN_SSL_DEBUG;
+#endif
+#if defined(USE_POLARSSL) || defined(USE_POLARSSL_APPLE_HYBRID)
+    ssl_cc.rng = rng;
+#endif
+#if defined(USE_POLARSSL) || defined(USE_POLARSSL_APPLE_HYBRID) || defined(USE_OPENSSL)
+    ssl_cc.local_cert_enabled = false;
+ //   ssl_cc.set_private_key_password(config.private_key_password);
+ //   ssl_cc.force_aes_cbc_ciphersuites = config.force_aes_cbc_ciphersuites;
+#endif
+    ssl_cc.load(opt);
+
     // If HTTP proxy parameters are not supplied by API, try to get them from config
     if (!http_proxy_options)
       http_proxy_options = HTTPProxyTransport::Options::parse(opt);
@@ -482,6 +498,7 @@ private:
       {
         // SSL transport
         SSLTransport::ClientConfig<ClientSSLAPI>::Ptr sslconf = SSLTransport::ClientConfig<ClientSSLAPI>::new_obj();
+        //sslconf->ssl_ctx.reset(new ClientSSLAPI(ssl_cc));
         sslconf->ssl_ctx = cp->ssl_ctx;
         sslconf->now = &now_;
         sslconf->remote_list = remote_list;
@@ -521,6 +538,7 @@ private:
   PRNG<RandomAPI, ClientCryptoAPI>::Ptr prng;
   Frame::Ptr frame;
   Client::ProtoConfig::Ptr cp;
+  ClientSSLAPI::Config ssl_cc;
   RemoteList::Ptr remote_list;
   TransportClientFactory::Ptr transport_factory;
   TunClientFactory::Ptr tun_factory;

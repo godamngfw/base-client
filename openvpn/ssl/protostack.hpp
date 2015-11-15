@@ -133,7 +133,6 @@ public:
   void app_send(BufferPtr& buf)
   {
     if (!invalidated()){
-      OPENVPN_LOG("ProtoStackBase" << read_context_ << " app_send Queue:" << app_write_queue.size());
       app_write_queue.push_back(buf);
     }
   }
@@ -278,20 +277,15 @@ private:
   // app data -> SSL -> protocol encapsulation -> reliability layer -> network
   void down_stack_app()
   {
-    OPENVPN_LOG("ProtoStackBase"<< read_context_ << " down_stack_app");
     if (ssl_started_)
     {
       // push app-layer cleartext through SSL object
-      OPENVPN_LOG("ProtoStackBase"<< read_context_ << " down_stack_app1");
       while (!app_write_queue.empty())
       {
-        OPENVPN_LOG("ProtoStackBase"<< read_context_ << " down_stack_app2");
         BufferPtr& buf = app_write_queue.front();
         try {
           const ssize_t size = ssl_->write_cleartext_unbuffered(buf->data(), buf->size());
           if (size == SSLContext::SSL::SHOULD_RETRY) {
-            OPENVPN_LOG("ProtoStackBase"<< read_context_ << " QUeue:" << app_write_queue.size());
-            OPENVPN_LOG("ProtoStackBase"<< read_context_ << " SHOULD_RETRY:" << buf->size());
             break;
           }
         }

@@ -85,6 +85,8 @@ public:
 	void reset() {
 		buf.reset();
 	}
+	id_t id() const {return id_;}
+	void set_id(id_t id) {id_ = id;}
 	const BufferPtr& buffer_ptr() {return buf;}
 	const Buffer& buffer() const { return *buf; }
 	void frame_prepare(const Frame& frame, const unsigned int context) {
@@ -93,6 +95,7 @@ public:
 		frame.prepare(context, *buf);
 	}
 private:
+	id_t id_;
 	BufferPtr buf;
 };
 
@@ -150,7 +153,6 @@ public:
 
 	virtual bool transport_send_const(const Buffer& cbuf)
 	{
-		OPENVPN_LOG("SSL Transport transport_send_const:" << cbuf.size());
 		BufferPtr buf(new BufferAllocated(cbuf, 0));
 		return pre_app_send(buf);
 		
@@ -158,7 +160,6 @@ public:
 
 	virtual bool transport_send(BufferAllocated& cbuf)
 	{
-		OPENVPN_LOG("SSL Transport transport_send:" << cbuf.size());
 		BufferPtr buf = new BufferAllocated();
 		buf->move(cbuf);
 		return pre_app_send(buf);
@@ -207,7 +208,7 @@ private:
 	// packet. Any exceptions thrown will invalidate session, i.e. this object
 	// can no longer be used.
 	virtual void encapsulate(id_t id, Packet& pkt) {
-
+		pkt.set_id(id);
 	}
 
 	// Perform integrity check on packet.  If packet is good, unencapsulate it and
@@ -236,8 +237,8 @@ private:
 		if (impl)
 		{
 			BufferAllocated buf(net_pkt.buffer(), 0);
-			OPENVPN_LOG("SSL Transport net_send:" << buf.size());
 			impl->send(buf);
+			Base::rel_send.ack(net_pkt.id());
 		}
 	}
 
@@ -245,7 +246,6 @@ private:
 	// of to_app_buf by making private copy of BufferPtr then calling
 	// reset on to_app_buf.
 	virtual void app_recv(BufferPtr& to_app_buf) {
-		OPENVPN_LOG("SSL Transport app_recv:" << to_app_buf->size());
 		BufferAllocated buf(*to_app_buf, 0);
 		//to_app_buf.reset();
 		BufferAllocated pkt;
@@ -263,7 +263,6 @@ private:
 			if (pktstream.ready())
 			{
 				pktstream.get(pkt);
-				OPENVPN_LOG("SSLTransport parent.transport_recv:" << pkt.size());
 				parent.transport_recv(pkt);
 			}
 		}
@@ -310,7 +309,6 @@ private:
 
 	void tcp_read_handler(BufferAllocated& buf) // called by LinkImpl
 	{
-		OPENVPN_LOG("SSL Transport tcp_read_handler:" << buf.size());
 		BufferPtr bp = new BufferAllocated();
 		bp->move(buf);
 		Packet pkt(bp);
@@ -420,11 +418,11 @@ private:
 	std::string server_host;
 	std::string server_port;
 
-	//用来重组解密后的数据包
+	//use to refragment the packet after decrypto
 	BufferAllocated frame_buffer;
 	const Frame::Context frame_context;
 	PacketStream pktstream;
-	//用来重组解密后的数据包
+	//use to refragment the packet after decrypto
 	
 	boost::asio::io_service& io_service;
 	boost::asio::ip::tcp::socket socket;
